@@ -95,6 +95,24 @@ def levenberg_marquardt(d, t, x, r_func, j_func, maxit=100, lamda=1, K=10, eps1=
         delta_x = JTJinv.dot(JTr)
         x += delta_x
 
+        # Convergence tests. If a solution has been found, returns the result.
+        # The Chi value is the norm of the residual and is used to determine
+        # Wether the solution is improving. If the Chi value is sufficiently 
+        # small, the function terminates. The second test checks to see weather
+        # or not the solution is improving, and terminates it if isn't.
+
+        r = r_func(x, t, d)
+        new_chi = np.linalg.norm(r)
+
+        if new_chi < eps1:
+            return x
+        elif np.linalg.norm(delta_x) < eps2*(np.linalg.norm(x) + eps2):
+            return x
+
+        # Tuning stage.
+
+        
+
 
 
 t = np.arange(-0.06, 0.06, 0.06/300)  # The points at which we will be taking our "measurement"
@@ -103,7 +121,7 @@ true_x = np.array([10., 33.3, 0.52]) # The true values of our parameter vector.
 x = np.array([8., 43.5, 1.05]) # Initial guess of parameter vector for our solver
 
 
-d = sinusoid(true_x, t) # Our "observed" data, constructed from our true parameter values and the noise vector
+d = sinusoid(true_x, t) + noise # Our "observed" data, constructed from our true parameter values and the noise vector
 m = sinusoid(x, t) # Our fitted function using the initial guess parameters.
 
 
