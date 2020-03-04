@@ -33,7 +33,7 @@ def sinusoid_jacobian(x, t):
 
 	x1 = x[0]
 	x2 = x[1]
-	x3 = x[3]
+	x3 = x[2]
 
 	jacobian = np.empty([t.shape[0], x.shape[0]])
 
@@ -78,7 +78,7 @@ def levenberg_marquardt(d, t, x, r_func, j_func, maxit=100, lamda=1, K=10, eps1=
     # Initialises some important values and stored the original lambda value.
     r = r_func(x, t, d)
     old_chi = np.linalg.norm(r)
-    olambda = lamda
+    olamda = lamda
     it = 0
 
     while True:
@@ -109,8 +109,22 @@ def levenberg_marquardt(d, t, x, r_func, j_func, maxit=100, lamda=1, K=10, eps1=
         elif np.linalg.norm(delta_x) < eps2*(np.linalg.norm(x) + eps2):
             return x
 
-        # Tuning stage.
+        # Tuning stage. If the parameter update was good, continue and restore lamda.
+        # If the update was bad, scale lamda by K and revert last update.
 
+        if new_chi > old_chi:
+            x -= delta_x
+            lamda = lamda*K
+        else:
+            old_chi = new_chi
+            lamda = olamda
+
+        # If the number of iterations grows too large, return the last value of x.
+        it += 1
+
+        if it > maxit:
+            return x
+        
         
 
 
@@ -124,10 +138,22 @@ x = np.array([8., 43.5, 1.05]) # Initial guess of parameter vector for our solve
 d = sinusoid(true_x, t) + noise # Our "observed" data, constructed from our true parameter values and the noise vector
 m = sinusoid(x, t) # Our fitted function using the initial guess parameters.
 
+# Plot Data and model
+#plt.plot(t, d, label = 'Data')
+#plt.plot(t, m, label = 'Model')
+#plt.legend()
+#plt.show()
 
-plt.plot(t, d, label = 'Data')
-plt.plot(t, m, label = 'Model')
+
+print(x)
+solved_x = levenberg_marquardt(d, t, x, sinusoid_residual, sinusoid_jacobian)
+print(true_x)
+print(solved_x)
+
+plt.plot(t, d, label="Data")
+plt.plot(t, sinusoid(solved_x, t), label="LM")
+plt.plot(t, sinusoid(true_x, t), label="True")
+plt.xlabel("t")
 plt.legend()
 plt.show()
-
 
