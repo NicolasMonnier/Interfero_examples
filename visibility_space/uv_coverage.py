@@ -30,13 +30,13 @@ dec = np.radians(34.)
 
 
 # Interactive bar - change the number of Ntimes --> Time integration du to Earth's rotation
-from ipywidgets import *
-from IPython.display import display
+#from ipywidgets import *
+#from IPython.display import display
 
 def interplot(key, Ntimes):
     print("Ntimes = "+str(Ntimes))
     plotBL.plotuv(antennaPosition, L, dec, h, Ntimes, lam)
 
-interplot("", 300)
+interplot("", 3)
 plt.show()
 

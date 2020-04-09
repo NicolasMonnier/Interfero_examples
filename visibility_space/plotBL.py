@@ -85,6 +85,16 @@ def makecubeplot(u,v,w):
     for ub, vb, wb in zip(Ub, Vb, Wb):
         ax.plot([ub], [vb], [wb], 'w')
 
+def UUVV(u,v):
+    fig = plt.figure(figsize=(8,8))
+    ax = fig.add_subplot(111)
+    ax.plot(u,v,'b')
+    ax.plot(-u, -v, 'r')
+
+    ax.set_xlabel('u')
+    ax.set_ylabel('v')
+    
+
 def UV(u,v,w):
     fig=plt.figure(figsize=(8,8))
     ax=fig.add_subplot(111,projection='3d')
