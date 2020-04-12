@@ -1,5 +1,101 @@
 import numpy as np
 from matplotlib import pyplot as plt
+
+def sim_uv_v2(ref_ra, ref_dec,
+           observation_length_in_hrs,
+           integration_length,
+           enu_coords,
+           latitude,
+           plot_on=False,
+           same_scales_plot=False,
+           plot_channel=299792458.0/1e9):
+    """
+    Simulates uv coverage given antenna coordintes in the East-North-Up frame
+    
+    Keyword arguments:
+    ref_ra --- Right Ascension of pointing centre (degrees)
+    ref_dec --- Declination of pointing centre (degrees)
+    integration_length --- Integration length in hours
+    enu_coordinates --- East-North-Up coordinates of antenna array at some latitude
+    latitude --- Latitude (degrees) of reference point near antenna array
+    plot_on --- Plots the projected u,v coverage after simulation (default=false)
+    same_scales_plot --- sets x and y limits to be the same on the plots
+    plot_channel --- scales the plot (expects channel to be given in wavelength)
+    """
+    no_antenna = enu_coords.shape[0]
+    print("Shape = ", no_antenna)
+    no_baselines = no_antenna * (no_antenna - 1) // 2 + no_antenna
+    print("Number of baselines", no_baselines)
+    cphi = np.cos(np.deg2rad(latitude))
+    sphi = np.sin(np.deg2rad(latitude))
+    reference_dec_rad = np.deg2rad(ref_dec)
+    integration_length_in_deg = integration_length / 24.0 * 360.0
+    no_timestamps = int(observation_length_in_hrs / integration_length)
+    row_count = no_timestamps * no_baselines
+
+    l = no_antenna
+    k = no_antenna
+    uvw = np.empty([row_count,3])
+
+    antenna_1 = 0 # id antenna 1
+    antenna_2 = 0 # id antenna 2
+    for t in range(no_timestamps): # 1st loop ddepending on the number of timestamp of the observation
+        antenna_1 = antenna_2 = 0
+        #timestamp = t/
+        for b in range(no_baselines): # 2nd loop dependening on the number of baseline
+            print(antenna_1)
+            #conversion to local altitude elevation angles:
+            be,bn,bu = enu_coords[int(antenna_1)] - enu_coords[int(antenna_2)]
+            mag_b = np.sqrt(be**2 + bn**2 + bu**2)
+            epsilon = 0.000000000001
+            A = np.arctan2(be,(bn + epsilon))
+            E = np.arcsin(bu/(mag_b + epsilon))
+            #conversion to equitorial coordinates:
+            sA = np.sin(A)
+            cA = np.cos(A)
+            sE = np.sin(E)
+            cE = np.cos(E)
+            Lx = (cphi*sE-sphi*cE*cA)*mag_b
+            Ly = (cE*sA)*mag_b
+            Lz = (sphi*sE+cphi*cE*cA)*mag_b
+            #conversion to uvw, where w points to the phase reference centre
+            rotation_in_radians = np.deg2rad(t*integration_length_in_deg + ref_ra)
+            sin_ra = np.sin(rotation_in_radians)
+            cos_ra = np.cos(rotation_in_radians)
+            sin_dec = np.sin(reference_dec_rad)
+            cos_dec = np.cos(reference_dec_rad)
+            u = -sin_ra*Lx + cos_ra*Ly
+            v = -sin_dec*cos_ra*Lx - sin_dec*sin_ra*Ly + cos_dec*Lz
+            w = cos_dec*cos_ra*Lx + cos_dec*sin_ra*Ly + sin_dec*Lz
+            uvw[t*no_baselines+b] = [u,v,w]
+            
+            antenna_2 += 1
+            if antenna_2 >= no_antenna:
+                antenna_1 += 1
+                antenna_2 = antenna_1
+
+    if plot_on:
+            hrs = int(observation_length_in_hrs)
+            mins = int(observation_length_in_hrs * 60 - hrs*60)
+            plt.figure(figsize=(8,8))
+            plt.title("UV COVERAGE (%dh:%dm @ RA=%f, DEC=%f)" % (hrs,mins,ref_ra,ref_dec))
+            plt.plot(uvw[:,0]/plot_channel/1e4,
+                     uvw[:,1]/plot_channel/1e4,
+                     "r.",label="Baselines")
+            plt.plot(-uvw[:,0]/plot_channel/1e4,
+                     -uvw[:,1]/plot_channel/1e4,
+                     "b.",label="Conjugate Baselines")
+            plt.xlabel("u ($k\lambda$)")
+            plt.ylabel("v ($k\lambda$)")
+            plt.legend(bbox_to_anchor=(1.75, 1.0))
+            if same_scales_plot:
+                maxval = max(abs(np.max(uvw/plot_channel/1e4)), abs(np.min(uvw/plot_channel/1e4)))
+                plt.xlim([-maxval,maxval])
+                plt.ylim([-maxval,maxval])
+    return uvw
+
+
+
 def sim_uv(ref_ra, ref_dec, 
            observation_length_in_hrs, 
            integration_length, 
@@ -23,6 +119,7 @@ def sim_uv(ref_ra, ref_dec,
     """
     no_antenna = enu_coords.shape[0]
     no_baselines = no_antenna * (no_antenna - 1) // 2 + no_antenna
+    print("Number of baselines", no_baselines)
     cphi = np.cos(np.deg2rad(latitude))
     sphi = np.sin(np.deg2rad(latitude))
     reference_dec_rad = np.deg2rad(ref_dec)
@@ -36,9 +133,11 @@ def sim_uv(ref_ra, ref_dec,
     
     for r in range(0,row_count):
         timestamp = r / (no_baselines)
+
         baseline_index = r % (no_baselines)
         increment_antenna_1_coord = (baseline_index / k)
-        
+        #increment_antenna_1_coord = (baseline_index % k)
+
         # calculate antenna 1 and antenna 2 ids based on baseline index using some fancy
         # footwork ;). This indexing scheme will enumerate all unique baselines per
         # timestamp.
@@ -51,7 +150,8 @@ def sim_uv(ref_ra, ref_dec,
         k -= (no_baselines-no_antenna) * new_timestamp
         l += (no_antenna-1) * new_timestamp
         #conversion to local altitude elevation angles:
-        be,bn,bu = enu_coords[antenna_1] - enu_coords[antenna_2]
+
+        be,bn,bu = enu_coords[int(antenna_1)] - enu_coords[int(antenna_2)]
         mag_b = np.sqrt(be**2 + bn**2 + bu**2)
         epsilon = 0.000000000001
         A = np.arctan2(be,(bn + epsilon))
@@ -66,6 +166,7 @@ def sim_uv(ref_ra, ref_dec,
         Lz = (sphi*sE+cphi*cE*cA)*mag_b
         #conversion to uvw, where w points to the phase reference centre
         rotation_in_radians = np.deg2rad(timestamp*integration_length_in_deg + ref_ra)
+        print(rotation_in_radians)
         sin_ra = np.sin(rotation_in_radians)
         cos_ra = np.cos(rotation_in_radians)
         sin_dec = np.sin(reference_dec_rad)
