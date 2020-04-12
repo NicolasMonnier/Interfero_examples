@@ -23,9 +23,7 @@ def sim_uv_v2(ref_ra, ref_dec,
     plot_channel --- scales the plot (expects channel to be given in wavelength)
     """
     no_antenna = enu_coords.shape[0]
-    print("Shape = ", no_antenna)
     no_baselines = no_antenna * (no_antenna - 1) // 2 + no_antenna
-    print("Number of baselines", no_baselines)
     cphi = np.cos(np.deg2rad(latitude))
     sphi = np.sin(np.deg2rad(latitude))
     reference_dec_rad = np.deg2rad(ref_dec)
